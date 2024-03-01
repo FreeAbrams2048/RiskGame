@@ -2,17 +2,51 @@
 #include <vector>
 #include <string>
 
+class Country;
+
+class Player {
+public:
+    std::string name;
+    std::vector<Country*> ownedCountries;
+    int totalArmies;
+
+    Player(const std::string& playerName) : name(playerName), totalArmies(0) {}
+
+    void addCountry(Country* country) {
+        ownedCountries.push_back(country);
+    }
+
+    void removeCountry(Country* country) {
+        ownedCountries.erase(std::remove(ownedCountries.begin(), ownedCountries.end(), country), ownedCountries.end());
+    }
+
+    void addArmies(int numArmies) {
+        totalArmies += numArmies;
+    }
+
+    void deployArmies(Country* country, int numArmies) {
+        if (numArmies <= totalArmies && std::find(ownedCountries.begin(), ownedCountries.end(), country) != ownedCountries.end()) {
+            country->addArmy(numArmies);
+            totalArmies -= numArmies;
+        } else {
+            std::cout << "Cannot deploy armies. Either not enough armies available or country not owned by player." << std::endl;
+        }
+    }
+};
+
+
 class Country {
 public:
 	std::string name;
-	std::string owner;
+	Player* owner;
 	int armyCount;
 	std::vector<Country*> neighbours;
 
-	Country(const std::string& countryName) : name(countryName), armyCount(0) {}
+	Country(const std::string& countryName) : name(countryName), owner(nullptr), armyCount(0) {}
 
-	void SetOwner(const std::string& playerName) {
-		owner = playerName;
+	void SetOwner(Player* player) {
+		owner = player;
+		player->addCountry(this);
 	}
 
 	void addArmy(int armiesAdded) {
@@ -48,7 +82,7 @@ public:
 		countries.push_back(country);
 	}
 
-	int findBonusArmies(const std::string& player) {
+	int findBonusArmies(Player* player) {
 		for (const auto& country : countries) {
 			if (country->owner != player) {
 				return 0;
