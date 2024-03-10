@@ -30,3 +30,8 @@
 *.exe
 *.out
 *.app
+*.vs
+*.log
+*x64
+*.DS_Store
+*.vscode
