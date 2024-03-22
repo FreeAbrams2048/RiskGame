@@ -2,210 +2,765 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <ctime>
+#include <thread>
+#include <chrono>
+#include <random>
+using std::cout;
+using std::endl;
+using std::string;
+using std::vector;
 
 // Forward declarations
 class Player;
 class Country;
+class Continent;
 
-class Player {
+class Player
+{
 public:
-	std::string name;
-	std::vector<Country*> ownedCountries;
-	int totalArmies;
+	string Name;
+	vector<Country *> OwnedCountries;
+	int TotalArmies;
 
-	Player(const std::string& playerName) : name(playerName), totalArmies(0) {}
+	Player(const std::string &playerName) : Name(playerName), TotalArmies(0) {}
 
-	void addCountry(Country* country);
-	void removeCountry(Country* country);
+	void addCountry(Country *country);
+	void removeCountry(Country *country);
 	void addArmies(int numArmies);
-	void deployArmies(Country* country, int numArmies);
-};
+	void deployArmies(Country *country, int numArmies);
 
-class Country {
-public:
-	std::string name;
-	Player* owner;
-	int armyCount;
-	std::vector<Country*> neighbours;
-
-	Country(const std::string& countryName) : name(countryName), owner(nullptr), armyCount(0) {}
-
-	void SetOwner(Player* player);
-	void addArmy(int armiesAdded);
-	void removeArmy(int armiesRemoved);
-	void addNeighbour(Country* neighbour);
-	bool areNeighbours(Country* other);
-};
-void Player::addCountry(Country* country) {
-	ownedCountries.push_back(country);
-}
-void Player::removeCountry(Country* country) {
-	ownedCountries.erase(std::remove(ownedCountries.begin(), ownedCountries.end(), country), ownedCountries.end());
-}
-void Player::addArmies(int numArmies) {
-	totalArmies += numArmies;
-}
-void Player::deployArmies(Country* country, int numArmies) {
-	if (numArmies <= totalArmies && std::find(ownedCountries.begin(), ownedCountries.end(), country) != ownedCountries.end()) {
-		country->addArmy(numArmies);
-		totalArmies -= numArmies;
+	vector<Country *> getCountries()
+	{
+		return OwnedCountries;
 	}
-	else {
+};
+
+class Neighbour
+{
+public:
+	Country *Neighbor;
+	int Armies;
+
+	Neighbour(Country *_neighbour, int _armies) : Neighbor(_neighbour), Armies(_armies) {}
+};
+
+class Country
+{
+public:
+	string name;
+	Player *owner;
+	int ArmyCount;
+	std::vector<Country *> neighbours;
+
+	Country(const std::string &countryName) : name(countryName), owner(nullptr), ArmyCount(0) {}
+
+	void SetOwner(Player *player);
+	void AddArmy(int armiesAdded);
+	void RemoveArmy(int armiesRemoved);
+	void AddNeighbour(Country *neighbour);
+	bool areNeighbours(Country *other);
+};
+void Player::addCountry(Country *country)
+{
+	OwnedCountries.push_back(country);
+}
+void Player::removeCountry(Country *country)
+{
+	OwnedCountries.erase(std::remove(OwnedCountries.begin(), OwnedCountries.end(), country), OwnedCountries.end());
+}
+void Player::addArmies(int numArmies)
+{
+	TotalArmies += numArmies;
+}
+void Player::deployArmies(Country *country, int numArmies)
+{
+	if (numArmies <= TotalArmies && std::find(OwnedCountries.begin(), OwnedCountries.end(), country) != OwnedCountries.end())
+	{
+		country->AddArmy(numArmies);
+		TotalArmies -= numArmies;
+	}
+	else
+	{
 		std::cout << "Cannot deploy armies. Either not enough armies available or country not owned by player." << std::endl;
 	}
 }
-void Country::SetOwner(Player* player) {
+void Country::SetOwner(Player *player)
+{
 	owner = player;
-	player->addCountry(this);
+	// player->addCountry(this);//This shouldnt be here
 }
 
-void Country::addArmy(int armiesAdded) {
-	armyCount += armiesAdded;
+void Country::AddArmy(int armiesAdded)
+{
+	ArmyCount += armiesAdded;
 }
 
-void Country::removeArmy(int armiesRemoved) {
-	armyCount -= armiesRemoved;
-	if (armyCount < 0) {
-		armyCount = 0;
+void Country::RemoveArmy(int armiesRemoved)
+{
+	ArmyCount -= armiesRemoved;
+	if (ArmyCount < 0)
+	{
+		ArmyCount = 0;
 	}
 }
 
-void Country::addNeighbour(Country* neighbour) {
+void Country::AddNeighbour(Country *neighbour)
+{
 	neighbours.push_back(neighbour);
 }
 
-bool Country::areNeighbours(Country* other) {
+bool Country::areNeighbours(Country *other)
+{
 	return std::find(neighbours.begin(), neighbours.end(), other) != neighbours.end();
 }
-class Continent {
+class Continent
+{
 public:
-	std::string name;
-	int bonusArmies;
-	std::vector<Country*> countries;
+	string Name;
+	int ControlValue; // etermining the number of armies given to a player each turn if they can control the entire continent.
+	vector<Country *> Countries;
 
-	Continent(const std::string& continentName, int bonus) : name(continentName), bonusArmies(bonus) {}
-
-	void addCountry(Country* country) {
-		countries.push_back(country);
+	Continent(const string &continentName, int controlValue) : Name(continentName), ControlValue(controlValue) {}
+	/*
+	Tells the continent that it has a new country in it.
+	*/
+	void AddCountry(Country *_country)
+	{
+		Countries.push_back(_country);
 	}
-
-	int findBonusArmies(Player* player) {
-		for (const auto& country : countries) {
-			if (country->owner != player) {
+	/*
+	Returns the control value of the continent if the player owns all the countries in the continent.
+	Otherwise, returns 0.
+	*/
+	int IsPlayerInControl(Player *player)
+	{
+		for (const auto &country : Countries)
+		{
+			if (country->owner != player)
+			{
 				return 0;
 			}
 		}
-		return bonusArmies;
+		return ControlValue;
 	}
 };
-class Map {
-public:
-	std::vector<Country*> countries;
-	std::vector<Continent*> continents;
+class Map
+{
+private:
+	void addCountry(Country *_country)
+	{
+		countries.push_back(_country);
+	}
 
-	void AddCounty(Country* country) {
-		countries.push_back(country);
-	}
-	void addContinent(Continent* continent) {
+public:
+	vector<Country *> countries;
+	vector<Continent *> continents;
+
+	void AddContinent(Continent *continent)
+	{
 		continents.push_back(continent);
+		// add all countries in the continent to the map
+		for (const auto &country : continent->Countries)
+		{
+			addCountry(country);
+		}
 	}
-	Country* findCountryByName(const std::string& name) {
-		for (const auto& country : countries) {
-			if (country->name == name) {
+	Country *findCountryByName(const std::string &name)
+	{
+		for (const auto &country : countries)
+		{
+			if (country->name == name)
+			{
 				return country;
 			}
 		}
 		return nullptr;
 	}
-	Continent* findContinentByName(const std::string& name) {
-		for (const auto& continent : continents) {
-			if (continent->name == name) {
+	Continent *findContinentByName(const std::string &name)
+	{
+		for (const auto &continent : continents)
+		{
+			if (continent->Name == name)
+			{
 				return continent;
 			}
 		}
 		return nullptr;
 	}
 
-	int reinforcmentPhase(Player* currentPlayer) {
+	int reinforcementPhase(Player *currentPlayer)
+	{
 		int reinforcments = 0;
-		
-		reinforcments += currentPlayer->ownedCountries.size() / 3;
-		if (reinforcments < 3) { reinforcments = 3; }
 
-		for (const auto& continent : continents) {
-			reinforcments += continent->findBonusArmies(currentPlayer);
+		reinforcments += currentPlayer->OwnedCountries.size() / 3;
+
+		for (const auto &continent : continents)
+		{
+			reinforcments += continent->IsPlayerInControl(currentPlayer);
 		}
+		currentPlayer->addArmies(reinforcments);
 
 		return reinforcments;
 	}
 
-	void attackPhase(Player* currentPlayer, Country* attackingCountry, Country* defendingCountry) {
-		if (!attackingCountry->areNeighbours(defendingCountry)) {
+	void attackPhase(Player *currentPlayer, Country *attackingCountry, Country *defendingCountry)
+	{
+		if (!attackingCountry->areNeighbours(defendingCountry))
+		{
 			std::cout << attackingCountry << " can not attack" << defendingCountry << ".\n";
 			return;
 		}
 		int attackerRole = rand() % 6 + 1;
 		int defenderRole = rand() % 6 + 1;
 
-		if (attackerRole > defenderRole) {
-			defendingCountry->removeArmy(1);
+		if (attackerRole > defenderRole)
+		{
+			defendingCountry->RemoveArmy(1);
 		}
-		else {
-			attackingCountry->removeArmy(1);
+		else
+		{
+			attackingCountry->RemoveArmy(1);
 		}
 
-		if (defendingCountry->armyCount == 0) {
+		if (defendingCountry->ArmyCount == 0)
+		{
 			defendingCountry->SetOwner(currentPlayer);
-			defendingCountry->addArmy(1);
+			defendingCountry->AddArmy(1);
 		}
 	}
 
-	void fortificationPhase(Player* currentPayer, Country* fromCountry, Country* toCountry, int armiesToMove) {
-		if (fromCountry->owner == currentPayer && toCountry->owner == currentPayer && fromCountry->areNeighbours(toCountry)) {
-			if (fromCountry->armyCount > armiesToMove) {
-				fromCountry->removeArmy(armiesToMove);
-				toCountry->addArmy(armiesToMove);
+	void fortificationPhase(Player *currentPayer, Country *fromCountry, Country *toCountry, int armiesToMove)
+	{
+		if (fromCountry->owner == currentPayer && toCountry->owner == currentPayer && fromCountry->areNeighbours(toCountry))
+		{
+			if (fromCountry->ArmyCount > armiesToMove)
+			{
+				fromCountry->RemoveArmy(armiesToMove);
+				toCountry->AddArmy(armiesToMove);
 			}
-			else {
+			else
+			{
 				std::cout << "Not enough armies present in selected country to fortify\n";
 			}
 		}
-		else {
+		else
+		{
 			std::cout << "Invalid fortify move, double check ownership of both countries are verify that they are neighbours\n";
 		}
 	}
 };
 
-void main() {
-	Map riskMap;
+class Game
+{
 
-	Player* player1 = new Player("Player 1");
-	Player* player2 = new Player("Player 2");
+private:
+	Map *map;
+	vector<Player *> players;
+	int currentPlayerIndex;
+	int reinforcementCardValue;
+	int numberOfPlayers;
 
-	Country* canada = new Country("Canada");
-	Country* unitedStates = new Country("United States");
-	Country* mexico = new Country("Mexico");
+public:
+	Game(int numPlayers = 2) : currentPlayerIndex(0), reinforcementCardValue(5), numberOfPlayers(numPlayers)
+	{
+		map = new Map();
 
-	canada->SetOwner(player1);
-	mexico->SetOwner(player2);
+		for (int i = 0; i < numberOfPlayers; ++i)
+		{
+			players.push_back(new Player("Player " + std::to_string(i + 1)));
+		}
+	}
 
-	player1->addArmies(5);
-	player2->addArmies(6);
+	~Game()
+	{
+		for (auto &player : players)
+		{
+			delete player;
+		}
+		delete map;
+	}
 
-	canada->addNeighbour(unitedStates);
-	mexico->addNeighbour(unitedStates);
-	unitedStates->addNeighbour(canada);
-	unitedStates->addNeighbour(mexico);
+	void printOwnedCountries(Player *player)
+	{
+		std::cout << player->Name << " owns: ";
+		for (auto country : player->OwnedCountries)
+		{
+			std::cout << country->name << ", ";
+		}
+		std::cout << std::endl;
+	}
+	void assignCountries()
+	{
+		srand(static_cast<unsigned int>(time(0)));
+		std::shuffle(map->countries.begin(), map->countries.end(), std::default_random_engine());
 
-	Continent* northAmerica = new Continent("North America", 5);
-	northAmerica->addCountry(canada);
-	northAmerica->addCountry(unitedStates);
-	northAmerica->addCountry(mexico);
+		for (size_t i = 0; i < map->countries.size(); i++)
+		{
+			players[i % players.size()]->addCountry(map->countries[i]);
+			map->countries[i]->SetOwner(players[i % players.size()]);
+		}
+		for (auto player : players)
+		{
+			printOwnedCountries(player);
+		}
+	}
 
-	riskMap.addContinent(northAmerica);
+	void attackPhase(Player *currentPlayer)
+	{
+		std::cout << currentPlayer->Name << ", it's your attack phase." << std::endl;
 
-	int reinforcment = riskMap.reinforcmentPhase(player1);
-	std::cout << reinforcment << std::endl;
-	player1->addArmies(reinforcment);
-	std::cout << player1->totalArmies<<std::endl;
+		while (true)
+		{
+			printOwnedCountries(currentPlayer);
+
+			Country *attackingCountry = selectCountry(currentPlayer, "Select attacking country: ");
+			if (attackingCountry == nullptr)
+			{
+				std::cout << "Attack phase ended.\n";
+				break; // Exit if player doesn't select a country
+			}
+
+			Country *defendingCountry = selectCountry(currentPlayer, "Select defending country (neighbor): ", attackingCountry);
+			if (defendingCountry == nullptr)
+				continue;
+
+			map->attackPhase(currentPlayer, attackingCountry, defendingCountry);
+
+			// Ask player if they want to attack again
+			std::cout << "Do you want to attack again? (yes/no): ";
+			std::string choice;
+			std::cin >> choice;
+			if (choice != "yes")
+			{
+				break; // Exit the loop if player doesn't want to continue
+			}
+		}
+	}
+	void fortificationPhase(Player *currentPlayer)
+	{
+		std::cout << currentPlayer->Name << ", it's your fortification phase." << std::endl;
+
+		while (true)
+		{
+			Country *fromCountry = selectCountry(currentPlayer, "Select country to fortify from: ");
+			if (fromCountry == nullptr)
+			{
+				std::cout << "Fortification phase ended.\n";
+				break;
+			}
+
+			Country *toCountry = selectCountry(currentPlayer, "Select neighbor country to fortify: ", fromCountry);
+			if (toCountry == nullptr)
+				continue;
+
+			int armiesToMove = selectArmyCount(fromCountry);
+			if (armiesToMove == 0)
+				continue;
+
+			map->fortificationPhase(currentPlayer, fromCountry, toCountry, armiesToMove);
+
+			// Ask if the player wants to fortify again
+			std::cout << "Do you want to fortify again? (yes/no): ";
+			std::string choice;
+			std::cin >> choice;
+			if (choice != "yes")
+			{
+				break;
+			}
+		}
+	}
+
+	Country *selectCountry(Player *player, const std::string &prompt, Country *neighborOf = nullptr)
+	{
+		while (true)
+		{
+			std::cout << prompt;
+			std::string countryName;
+			std::getline(std::cin, countryName); // Get country name input
+
+			Country *selectedCountry = map->findCountryByName(countryName);
+			if (selectedCountry != nullptr && selectedCountry->owner == player)
+			{
+				if (neighborOf == nullptr || selectedCountry->areNeighbours(neighborOf))
+				{
+					return selectedCountry;
+				}
+				else
+				{
+					std::cout << "Invalid selection: countries are not neighbors." << std::endl;
+				}
+			}
+			else
+			{
+				std::cout << "Invalid selection: country not found or not owned by you." << std::endl;
+			}
+		}
+	}
+
+	int selectArmyCount(Country *country)
+	{
+		while (true)
+		{
+			if (country->ArmyCount == 1)
+			{
+				std::cout << "No armies to move." << std::endl;
+				return 0;
+			}
+			std::cout << "Enter the number of armies to move (max " << country->ArmyCount - 1 << "): ";
+			int armiesToMove;
+			std::cin >> armiesToMove;
+			std::cin.ignore();
+
+			if (armiesToMove >= 1 && armiesToMove <= country->ArmyCount - 1)
+			{
+				return armiesToMove;
+			}
+			else
+			{
+				std::cout << "Invalid number of armies. Please try again." << std::endl;
+			}
+		}
+	}
+	void deployReinforcements(Player *player, int numArmies)
+	{
+		while (numArmies > 0)
+		{
+			Country *country = selectCountry(player, "Select country to deploy to: ");
+			if (country == nullptr)
+				break;
+
+			player->deployArmies(country, 1);
+			numArmies--;
+		}
+	}
+	void setCountries()
+	{
+		// NA
+		Continent *_northAmerica = new Continent("North America", 5);
+
+		Country *_alaska = new Country("Alaska");
+		Country *_alberta = new Country("Alberta");
+		Country *_centralAmerica = new Country("Central America");
+		Country *_easternUnitedStates = new Country("Eastern United States");
+		Country *_greenland = new Country("Greenland");
+		Country *_northwestTerritory = new Country("Northwest Territory");
+		Country *_ontario = new Country("Ontario");
+		Country *_quebec = new Country("Quebec");
+		Country *_westernUnitedStates = new Country("Western United States");
+
+		_northAmerica->AddCountry(_alaska);
+		_northAmerica->AddCountry(_alberta);
+		_northAmerica->AddCountry(_centralAmerica);
+		_northAmerica->AddCountry(_easternUnitedStates);
+		_northAmerica->AddCountry(_greenland);
+		_northAmerica->AddCountry(_northwestTerritory);
+		_northAmerica->AddCountry(_ontario);
+		_northAmerica->AddCountry(_quebec);
+		_northAmerica->AddCountry(_westernUnitedStates);
+
+		map->AddContinent(_northAmerica);
+
+		_alaska->AddNeighbour(_alberta);
+		_alaska->AddNeighbour(_northwestTerritory);
+		_alberta->AddNeighbour(_alaska);
+		_alberta->AddNeighbour(_northwestTerritory);
+		_alberta->AddNeighbour(_ontario);
+		_alberta->AddNeighbour(_westernUnitedStates);
+		_centralAmerica->AddNeighbour(_easternUnitedStates);
+		_centralAmerica->AddNeighbour(_westernUnitedStates);
+		_easternUnitedStates->AddNeighbour(_centralAmerica);
+		_easternUnitedStates->AddNeighbour(_ontario);
+		_easternUnitedStates->AddNeighbour(_quebec);
+		_easternUnitedStates->AddNeighbour(_westernUnitedStates);
+		_greenland->AddNeighbour(_northwestTerritory);
+		_greenland->AddNeighbour(_ontario);
+		_greenland->AddNeighbour(_quebec);
+		_northwestTerritory->AddNeighbour(_alaska);
+		_northwestTerritory->AddNeighbour(_alberta);
+		_northwestTerritory->AddNeighbour(_greenland);
+		_northwestTerritory->AddNeighbour(_ontario);
+		_ontario->AddNeighbour(_alberta);
+		_ontario->AddNeighbour(_easternUnitedStates);
+		_ontario->AddNeighbour(_greenland);
+		_ontario->AddNeighbour(_northwestTerritory);
+		_ontario->AddNeighbour(_quebec);
+		_ontario->AddNeighbour(_westernUnitedStates);
+		_quebec->AddNeighbour(_easternUnitedStates);
+		_quebec->AddNeighbour(_greenland);
+		_quebec->AddNeighbour(_ontario);
+		_westernUnitedStates->AddNeighbour(_alberta);
+		_westernUnitedStates->AddNeighbour(_centralAmerica);
+		_westernUnitedStates->AddNeighbour(_easternUnitedStates);
+		_westernUnitedStates->AddNeighbour(_ontario);
+
+		// South America
+		Continent *_southAmerica = new Continent("South America", 2);
+
+		Country *_argentina = new Country("Argentina");
+		Country *_brazil = new Country("Brazil");
+		Country *peru = new Country("Peru");
+		Country *venezuela = new Country("Venezuela");
+
+		_southAmerica->AddCountry(_argentina);
+		_southAmerica->AddCountry(_brazil);
+		_southAmerica->AddCountry(peru);
+		_southAmerica->AddCountry(venezuela);
+
+		map->AddContinent(_southAmerica);
+
+		_argentina->AddNeighbour(_brazil);
+		_argentina->AddNeighbour(peru);
+		_brazil->AddNeighbour(_argentina);
+		_brazil->AddNeighbour(peru);
+		_brazil->AddNeighbour(venezuela);
+		peru->AddNeighbour(_argentina);
+		peru->AddNeighbour(_brazil);
+		peru->AddNeighbour(venezuela);
+		venezuela->AddNeighbour(_brazil);
+		venezuela->AddNeighbour(peru);
+
+		// Europe
+		Continent *_europe = new Continent("Europe", 5);
+
+		Country *_greatBritain = new Country("Great Britain");
+		Country *_iceland = new Country("Iceland");
+		Country *_northernEurope = new Country("Northern Europe");
+		Country *_scandinavia = new Country("Scandinavia");
+		Country *_southernEurope = new Country("Southern Europe");
+		Country *_ukraine = new Country("Ukraine");
+		Country *_westernEurope = new Country("Western Europe");
+
+		_europe->AddCountry(_greatBritain);
+		_europe->AddCountry(_iceland);
+		_europe->AddCountry(_northernEurope);
+		_europe->AddCountry(_scandinavia);
+		_europe->AddCountry(_southernEurope);
+		_europe->AddCountry(_ukraine);
+		_europe->AddCountry(_westernEurope);
+
+		map->AddContinent(_europe);
+
+		_greatBritain->AddNeighbour(_iceland);
+		_greatBritain->AddNeighbour(_northernEurope);
+		_greatBritain->AddNeighbour(_scandinavia);
+		_greatBritain->AddNeighbour(_westernEurope);
+		_iceland->AddNeighbour(_greatBritain);
+		_iceland->AddNeighbour(_scandinavia);
+		_northernEurope->AddNeighbour(_greatBritain);
+		_northernEurope->AddNeighbour(_scandinavia);
+		_northernEurope->AddNeighbour(_southernEurope);
+		_northernEurope->AddNeighbour(_ukraine);
+		_northernEurope->AddNeighbour(_westernEurope);
+		_scandinavia->AddNeighbour(_greatBritain);
+		_scandinavia->AddNeighbour(_iceland);
+		_scandinavia->AddNeighbour(_northernEurope);
+		_scandinavia->AddNeighbour(_ukraine);
+		_southernEurope->AddNeighbour(_northernEurope);
+		_southernEurope->AddNeighbour(_ukraine);
+		_southernEurope->AddNeighbour(_westernEurope);
+		_ukraine->AddNeighbour(_northernEurope);
+		_ukraine->AddNeighbour(_scandinavia);
+		_ukraine->AddNeighbour(_southernEurope);
+		_westernEurope->AddNeighbour(_greatBritain);
+		_westernEurope->AddNeighbour(_northernEurope);
+		_westernEurope->AddNeighbour(_southernEurope);
+
+		// Africa
+		Continent *_africa = new Continent("Africa", 3);
+
+		Country *_congo = new Country("Congo");
+		Country *_eastAfrica = new Country("East Africa");
+		Country *_egypt = new Country("Egypt");
+		Country *_madagascar = new Country("Madagascar");
+		Country *_northAfrica = new Country("North Africa");
+		Country *_southAfrica = new Country("South Africa");
+
+		_africa->AddCountry(_congo);
+		_africa->AddCountry(_eastAfrica);
+		_africa->AddCountry(_egypt);
+		_africa->AddCountry(_madagascar);
+		_africa->AddCountry(_northAfrica);
+		_africa->AddCountry(_southAfrica);
+
+		map->AddContinent(_africa);
+
+		_congo->AddNeighbour(_eastAfrica);
+		_congo->AddNeighbour(_northAfrica);
+		_congo->AddNeighbour(_southAfrica);
+		_eastAfrica->AddNeighbour(_congo);
+		_eastAfrica->AddNeighbour(_egypt);
+		_eastAfrica->AddNeighbour(_madagascar);
+		_eastAfrica->AddNeighbour(_northAfrica);
+		_eastAfrica->AddNeighbour(_southAfrica);
+		_egypt->AddNeighbour(_eastAfrica);
+		_egypt->AddNeighbour(_northAfrica);
+		_madagascar->AddNeighbour(_eastAfrica);
+		_madagascar->AddNeighbour(_southAfrica);
+		_northAfrica->AddNeighbour(_congo);
+		_northAfrica->AddNeighbour(_eastAfrica);
+		_northAfrica->AddNeighbour(_egypt);
+		_southAfrica->AddNeighbour(_congo);
+		_southAfrica->AddNeighbour(_eastAfrica);
+		_southAfrica->AddNeighbour(_madagascar);
+
+		// Asia
+		Continent *_asia = new Continent("Asia", 7);
+
+		Country *_afghanistan = new Country("Afghanistan");
+		Country *_china = new Country("China");
+		Country *_india = new Country("India");
+		Country *_irkutsk = new Country("Irkutsk");
+		Country *_japan = new Country("Japan");
+		Country *_kamchatka = new Country("Kamchatka");
+		Country *_middleEast = new Country("Middle East");
+		Country *_mongolia = new Country("Mongolia");
+		Country *_siam = new Country("Siam");
+		Country *_siberia = new Country("Siberia");
+		Country *_ural = new Country("Ural");
+		Country *_yakutsk = new Country("Yakutsk");
+
+		_asia->AddCountry(_afghanistan);
+		_asia->AddCountry(_china);
+		_asia->AddCountry(_india);
+		_asia->AddCountry(_irkutsk);
+		_asia->AddCountry(_japan);
+		_asia->AddCountry(_kamchatka);
+		_asia->AddCountry(_middleEast);
+		_asia->AddCountry(_mongolia);
+		_asia->AddCountry(_siam);
+		_asia->AddCountry(_siberia);
+		_asia->AddCountry(_ural);
+		_asia->AddCountry(_yakutsk);
+
+		map->AddContinent(_asia);
+
+		_afghanistan->AddNeighbour(_china);
+		_afghanistan->AddNeighbour(_india);
+		_afghanistan->AddNeighbour(_middleEast);
+		_afghanistan->AddNeighbour(_ural);
+		_china->AddNeighbour(_afghanistan);
+		_china->AddNeighbour(_india);
+		_china->AddNeighbour(_mongolia);
+		_china->AddNeighbour(_siam);
+		_china->AddNeighbour(_siberia);
+		_china->AddNeighbour(_ural);
+		_india->AddNeighbour(_afghanistan);
+		_india->AddNeighbour(_china);
+		_india->AddNeighbour(_middleEast);
+		_india->AddNeighbour(_siam);
+		_irkutsk->AddNeighbour(_kamchatka);
+		_irkutsk->AddNeighbour(_mongolia);
+		_irkutsk->AddNeighbour(_siberia);
+		_irkutsk->AddNeighbour(_yakutsk);
+		_japan->AddNeighbour(_kamchatka);
+		_japan->AddNeighbour(_mongolia);
+		_kamchatka->AddNeighbour(_irkutsk);
+		_kamchatka->AddNeighbour(_japan);
+		_kamchatka->AddNeighbour(_mongolia);
+		_kamchatka->AddNeighbour(_yakutsk);
+		_middleEast->AddNeighbour(_afghanistan);
+		_middleEast->AddNeighbour(_india);
+		_middleEast->AddNeighbour(_egypt);		// Connecting to Africa
+		_middleEast->AddNeighbour(_eastAfrica); // Connecting to Africa
+		_mongolia->AddNeighbour(_china);
+		_mongolia->AddNeighbour(_irkutsk);
+		_mongolia->AddNeighbour(_japan);
+		_mongolia->AddNeighbour(_kamchatka);
+		_mongolia->AddNeighbour(_siberia);
+		_siam->AddNeighbour(_china);
+		_siam->AddNeighbour(_india);
+		_siberia->AddNeighbour(_china);
+		_siberia->AddNeighbour(_irkutsk);
+		_siberia->AddNeighbour(_mongolia);
+		_siberia->AddNeighbour(_ural);
+		_siberia->AddNeighbour(_yakutsk);
+		_ural->AddNeighbour(_afghanistan);
+		_ural->AddNeighbour(_china);
+		_ural->AddNeighbour(_siberia);
+		_yakutsk->AddNeighbour(_irkutsk);
+		_yakutsk->AddNeighbour(_kamchatka);
+		_yakutsk->AddNeighbour(_siberia);
+
+		// Australia
+		Continent *_australia = new Continent("Australia", 2);
+
+		Country *_easternAustralia = new Country("Eastern Australia");
+		Country *_indonesia = new Country("Indonesia");
+		Country *_newGuinea = new Country("New Guinea");
+		Country *_westernAustralia = new Country("Western Australia");
+
+		_australia->AddCountry(_easternAustralia);
+		_australia->AddCountry(_indonesia);
+		_australia->AddCountry(_newGuinea);
+		_australia->AddCountry(_westernAustralia);
+
+		map->AddContinent(_australia);
+
+		_easternAustralia->AddNeighbour(_newGuinea);
+		_easternAustralia->AddNeighbour(_westernAustralia);
+		_indonesia->AddNeighbour(_newGuinea);
+		_indonesia->AddNeighbour(_westernAustralia);
+		_indonesia->AddNeighbour(_siam); // Connecting to Asia
+		_newGuinea->AddNeighbour(_easternAustralia);
+		_newGuinea->AddNeighbour(_indonesia);
+		_newGuinea->AddNeighbour(_westernAustralia);
+		_westernAustralia->AddNeighbour(_easternAustralia);
+		_westernAustralia->AddNeighbour(_indonesia);
+		_westernAustralia->AddNeighbour(_newGuinea);
+	}
+
+	void StartGame()
+	{
+		setCountries();
+
+		assignCountries();
+
+		while (!checkGameEnd())
+		{
+			currentPlayerIndex = currentPlayerIndex % players.size();
+			Player *currentPlayer = players[currentPlayerIndex];
+
+			int reinforcements = map->reinforcementPhase(currentPlayer);
+			std::cout << currentPlayer->Name << " receives " << reinforcements << " reinforcements." << std::endl;
+			deployReinforcements(currentPlayer, reinforcements);
+
+			attackPhase(currentPlayer);
+			std::cout << "Attack phase for " << currentPlayer->Name << std::endl;
+
+			// Fortification phase (placeholder, implement your logic)
+			fortificationPhase(currentPlayer);
+			std::cout << "Fortification phase for " << currentPlayer->Name << std::endl;
+
+			// await 1000ms
+			std::cout << "__________________________________________________" << std::endl;
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+			currentPlayerIndex++;
+		}
+
+		Player *winner = players[currentPlayerIndex]; // Last standing player wins
+		std::cout << "Game Over. " << winner->Name << " wins!" << std::endl;
+	}
+
+	bool checkGameEnd()
+	{
+		int playersWithCountries = 0;
+		for (Player *player : players)
+		{
+			if (player->OwnedCountries.size() > 0)
+			{
+				playersWithCountries++;
+			}
+		}
+		return playersWithCountries == 1; // True if only one player has territories
+	}
+};
+
+int main()
+{
+
+	Game _riskGame;
+	_riskGame.StartGame();
+	return 0;
 }
