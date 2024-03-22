@@ -254,6 +254,7 @@ public:
 
 	void fortificationPhase(Player *currentPayer, Country *fromCountry, Country *toCountry, int armiesToMove)
 	{
+
 		if (fromCountry->Owner == currentPayer && toCountry->Owner == currentPayer && fromCountry->areNeighbours(toCountry))
 		{
 			if (fromCountry->ArmyCount > armiesToMove)
@@ -421,16 +422,36 @@ public:
 	}
 	void fortificationPhase(Player *currentPlayer)
 	{
-		cout << currentPlayer->Name << ", it's your fortification phase." << std::endl;
+		string input;
+		cout << currentPlayer->Name << ", it's your fortification phase, do you wish to fortify(yes/no)" << std::endl;
+		cin >> input;
+		if (input != "yes")
+			return;
 
-		Country *fromCountry = selectCountry(currentPlayer, "Select country to fortify from: ");
+		cout << "Countries you can reinforce from ";
+		for (auto country : currentPlayer->OwnedCountries)
+		{
+			if (country->ArmyCount > 1)
+			{
+				cout << country->Name << " | ";
+			}
+		}
+		cout << endl;
+		Country *fromCountry = selectCountry(currentPlayer, "Which country do you want to move armies from: ");
 		if (fromCountry == nullptr)
 		{
 			cout << "Fortification phase ended.\n";
 			return;
 		}
 
+		cout << fromCountry->Name << " Neighbours: ";
+		for (auto neighbour : fromCountry->Neighbours)
+		{
+			cout << neighbour->Name << " | ";
+		}
+		cout << endl;
 		Country *toCountry = selectCountry(currentPlayer, "Select neighbor country to fortify: ", fromCountry);
+
 		if (toCountry == nullptr)
 		{
 			return;
@@ -443,6 +464,7 @@ public:
 		}
 
 		map->fortificationPhase(currentPlayer, fromCountry, toCountry, armiesToMove);
+		cout << "Moved " << armiesToMove << " from " << fromCountry->Name << " to " << toCountry->Name << endl;
 	}
 
 	Country *selectCountry(Player *player, const std::string &prompt, Country *neighborOf = nullptr)
@@ -506,14 +528,33 @@ public:
 	}
 	void deployReinforcements(Player *player, int numArmies)
 	{
+		int amountDeployed = 0;
 		while (numArmies > 0)
 		{
-			Country *country = selectCountry(player, "Select country to deploy to: ");
+			cout << "How many armies to deploy: ";
+			cin >> amountDeployed;
+			while (amountDeployed > numArmies)
+			{
+				cout << "Number to deploy is greater then available armies" << endl;
+				cout << "How many armies to deploy: ";
+				cin >> amountDeployed;
+			}
+			while (amountDeployed <= 0)
+			{
+				cout << "Number to deploy must be greater than 0" << endl;
+				cout << "How many armies to deploy: ";
+				cin >> amountDeployed;
+			}
+			Country *country = selectCountry(player, "Select the country you wish to deploy them to: ");
 			if (country == nullptr)
 				break;
-
-			player->deployArmies(country, 1);
-			numArmies--;
+			while (amountDeployed > 0)
+			{
+				player->deployArmies(country, 1);
+				amountDeployed--;
+				numArmies--;
+			}
+			cout << numArmies << " remaining" << endl;
 		}
 	}
 	void setCountries()
@@ -819,6 +860,7 @@ public:
 
 			int reinforcements = map->GetReinforcementsAmount(currentPlayer);
 			std::cout << currentPlayer->Name << " receives " << reinforcements << " reinforcements." << std::endl;
+
 			deployReinforcements(currentPlayer, reinforcements);
 
 			attackPhase(currentPlayer);
