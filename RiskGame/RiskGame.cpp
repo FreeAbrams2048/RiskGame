@@ -708,6 +708,20 @@ public:
 		_westernAustralia->AddNeighbour(_easternAustralia);
 		_westernAustralia->AddNeighbour(_indonesia);
 		_westernAustralia->AddNeighbour(_newGuinea);
+
+		//connections to other continents
+		_alaska->AddNeighbour(_kamchatka);
+		_kamchatka->AddNeighbour(_alaska);
+
+		_northAfrica->AddNeighbour(_brazil);
+		_northAfrica->AddNeighbour(_westernEurope);
+		_northAfrica->AddNeighbour(_southernEurope);
+		_brazil->AddNeighbour(_northAfrica);
+		_westernEurope->AddNeighbour(_northAfrica);
+		_southernEurope->AddNeighbour(_northAfrica);
+
+		_egypt->AddNeighbour(_southernEurope);
+		_southernEurope->AddNeighbour(_egypt);
 	}
 
 	void StartGame()
