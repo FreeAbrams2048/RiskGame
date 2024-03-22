@@ -6,6 +6,7 @@
 #include <thread>
 #include <chrono>
 #include <random>
+using std::cin;
 using std::cout;
 using std::endl;
 using std::string;
@@ -36,24 +37,15 @@ public:
 	}
 };
 
-class Neighbour
-{
-public:
-	Country *Neighbor;
-	int Armies;
-
-	Neighbour(Country *_neighbour, int _armies) : Neighbor(_neighbour), Armies(_armies) {}
-};
-
 class Country
 {
 public:
-	string name;
-	Player *owner;
+	string Name;
+	Player *Owner;
 	int ArmyCount;
-	std::vector<Country *> neighbours;
+	std::vector<Country *> Neighbours;
 
-	Country(const std::string &countryName) : name(countryName), owner(nullptr), ArmyCount(0) {}
+	Country(const std::string &countryName) : Name(countryName), Owner(nullptr), ArmyCount(1) {}
 
 	void SetOwner(Player *player);
 	void AddArmy(int armiesAdded);
@@ -87,7 +79,7 @@ void Player::deployArmies(Country *country, int numArmies)
 }
 void Country::SetOwner(Player *player)
 {
-	owner = player;
+	Owner = player;
 	// player->addCountry(this);//This shouldnt be here
 }
 
@@ -107,12 +99,12 @@ void Country::RemoveArmy(int armiesRemoved)
 
 void Country::AddNeighbour(Country *neighbour)
 {
-	neighbours.push_back(neighbour);
+	Neighbours.push_back(neighbour);
 }
 
 bool Country::areNeighbours(Country *other)
 {
-	return std::find(neighbours.begin(), neighbours.end(), other) != neighbours.end();
+	return std::find(Neighbours.begin(), Neighbours.end(), other) != Neighbours.end();
 }
 class Continent
 {
@@ -137,7 +129,7 @@ public:
 	{
 		for (const auto &country : Countries)
 		{
-			if (country->owner != player)
+			if (country->Owner != player)
 			{
 				return 0;
 			}
@@ -170,7 +162,7 @@ public:
 	{
 		for (const auto &country : countries)
 		{
-			if (country->name == name)
+			if (country->Name == name)
 			{
 				return country;
 			}
@@ -189,50 +181,80 @@ public:
 		return nullptr;
 	}
 
-	int reinforcementPhase(Player *currentPlayer)
+	int GetReinforcementsAmount(Player *_currentPlayer)
 	{
 		int reinforcments = 0;
 
-		reinforcments += currentPlayer->OwnedCountries.size() / 3;
+		reinforcments += _currentPlayer->OwnedCountries.size() / 3;
 
 		for (const auto &continent : continents)
 		{
-			reinforcments += continent->IsPlayerInControl(currentPlayer);
+			reinforcments += continent->IsPlayerInControl(_currentPlayer);
 		}
-		currentPlayer->addArmies(reinforcments);
+		_currentPlayer->addArmies(reinforcments);
 
 		return reinforcments;
 	}
-
-	void attackPhase(Player *currentPlayer, Country *attackingCountry, Country *defendingCountry)
+	// rolls the dice the amount of times specified and returns the highest roll
+	int rollDice(int _rolls)
 	{
+		int highestRoll = 0;
+		for (int i = 0; i < _rolls; ++i)
+		{
+			int roll = rand() % 6 + 1;
+			if (roll > highestRoll)
+			{
+				highestRoll = roll;
+			}
+		}
+		return highestRoll;
+	}
+
+	void AttackCountry(Player *currentPlayer, Country *attackingCountry, Country *defendingCountry)
+	{
+		cout << "Print" << endl;
 		if (!attackingCountry->areNeighbours(defendingCountry))
 		{
 			std::cout << attackingCountry << " can not attack" << defendingCountry << ".\n";
 			return;
 		}
-		int attackerRole = rand() % 6 + 1;
-		int defenderRole = rand() % 6 + 1;
+		// repeat until attacker or defender has no armies left
+		int _diceRolls = 0;
 
-		if (attackerRole > defenderRole)
+		do
 		{
-			defendingCountry->RemoveArmy(1);
-		}
-		else
-		{
-			attackingCountry->RemoveArmy(1);
-		}
+			int attackerRole = rollDice(3);
+			int defenderRole = rollDice(2);
+			++_diceRolls;
 
-		if (defendingCountry->ArmyCount == 0)
-		{
-			defendingCountry->SetOwner(currentPlayer);
-			defendingCountry->AddArmy(1);
-		}
+			if (attackerRole > defenderRole)
+			{
+				defendingCountry->RemoveArmy(1);
+				cout << "Defender lost the battle" << endl;
+			}
+			else
+			{
+				attackingCountry->RemoveArmy(1);
+				cout << "Attacker lost the battle" << endl;
+			}
+			cout << "Attacking country: " << attackingCountry->Name << " has " << attackingCountry->ArmyCount << " armies left." << endl;
+			cout << "Defending country: " << defendingCountry->Name << " has " << defendingCountry->ArmyCount << " armies left." << endl;
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			if (defendingCountry->ArmyCount == 0)
+			{
+				defendingCountry->SetOwner(currentPlayer);
+				// deploy armies equal to the number of dice rolled
+				defendingCountry->AddArmy(1);
+				cout << "Defender lost " << defendingCountry->Name << endl;
+				cout << "Attacker won " << defendingCountry->Name << endl;
+				break;
+			}
+		} while (attackingCountry->ArmyCount > 0 && defendingCountry->ArmyCount > 0);
 	}
 
 	void fortificationPhase(Player *currentPayer, Country *fromCountry, Country *toCountry, int armiesToMove)
 	{
-		if (fromCountry->owner == currentPayer && toCountry->owner == currentPayer && fromCountry->areNeighbours(toCountry))
+		if (fromCountry->Owner == currentPayer && toCountry->Owner == currentPayer && fromCountry->areNeighbours(toCountry))
 		{
 			if (fromCountry->ArmyCount > armiesToMove)
 			{
@@ -286,7 +308,7 @@ public:
 		std::cout << player->Name << " owns: ";
 		for (auto country : player->OwnedCountries)
 		{
-			std::cout << country->name << ", ";
+			std::cout << country->Name << ", ";
 		}
 		std::cout << std::endl;
 	}
@@ -295,7 +317,7 @@ public:
 		srand(static_cast<unsigned int>(time(0)));
 		std::shuffle(map->countries.begin(), map->countries.end(), std::default_random_engine());
 
-		for (size_t i = 0; i < map->countries.size(); i++)
+		for (size_t i = 0; i < map->countries.size(); ++i)
 		{
 			players[i % players.size()]->addCountry(map->countries[i]);
 			map->countries[i]->SetOwner(players[i % players.size()]);
@@ -308,79 +330,131 @@ public:
 
 	void attackPhase(Player *currentPlayer)
 	{
-		std::cout << currentPlayer->Name << ", it's your attack phase." << std::endl;
-
-		while (true)
+		cout << currentPlayer->Name << ", it's your attack phase." << std::endl;
+		// ask player if they want to attack
+		string choice;
+		cout << "Do you want to attack? (yes/no): ";
+		getline(cin, choice);
+		if (choice != "yes")
 		{
-			printOwnedCountries(currentPlayer);
+			return;
+		}
 
-			Country *attackingCountry = selectCountry(currentPlayer, "Select attacking country: ");
-			if (attackingCountry == nullptr)
+		// print countries with more than 1 army
+		// store them in an vector and then allow player to select from them
+		cout << "Countries with more than 1 army: ";
+		vector<Country *> _countriesWithArmies;
+		for (auto country : currentPlayer->OwnedCountries)
+		{
+			if (country->ArmyCount > 1)
 			{
-				std::cout << "Attack phase ended.\n";
-				break; // Exit if player doesn't select a country
-			}
-
-			Country *defendingCountry = selectCountry(currentPlayer, "Select defending country (neighbor): ", attackingCountry);
-			if (defendingCountry == nullptr)
-				continue;
-
-			map->attackPhase(currentPlayer, attackingCountry, defendingCountry);
-
-			// Ask player if they want to attack again
-			std::cout << "Do you want to attack again? (yes/no): ";
-			std::string choice;
-			std::cin >> choice;
-			if (choice != "yes")
-			{
-				break; // Exit the loop if player doesn't want to continue
+				cout << country->Name << " | ";
+				_countriesWithArmies.push_back(country);
 			}
 		}
+		cout << endl;
+		if (_countriesWithArmies.size() == 0)
+		{
+			std::cout << "No countries with more than 1 army to attack from." << std::endl;
+			return;
+		}
+		Country *attackingCountry;
+		while (true)
+		{
+			cout << "Select a country to attack from: ";
+			string countryName;
+			getline(cin, countryName);
+			for (auto country : _countriesWithArmies)
+			{
+				if (country->Name == countryName)
+				{
+					attackingCountry = country;
+					cout << "Selected country: " << attackingCountry->Name << endl;
+					break;
+				}
+			}
+			if (attackingCountry != nullptr)
+			{
+				break;
+			}
+			cout << "Invalid selection: country does not have enough armies or not owned." << endl;
+		}
+		vector<Country *> _neighbourCountries;
+		// get the neighbour countries of the attacking country
+		cout << "Enemy neighbours of " << attackingCountry->Name << " are: ";
+		for (auto neighbour : attackingCountry->Neighbours)
+		{
+			// check if its not owned by the player
+			if (neighbour->Owner != currentPlayer)
+				continue;
+			cout << neighbour->Name << " | ";
+			_neighbourCountries.push_back(neighbour);
+		}
+		cout << endl;
+		if (_neighbourCountries.size() == 0)
+		{
+			std::cout << "No neighbours to attack." << std::endl;
+			return;
+		}
+		Country *defendingCountry;
+		while (true)
+		{
+			cout << "Select a country to attack: ";
+			string countryName;
+			getline(cin, countryName);
+			for (auto country : _neighbourCountries)
+			{
+				if (country->Name == countryName)
+				{
+					defendingCountry = country;
+					break;
+				}
+			}
+			if (defendingCountry != nullptr)
+			{
+				break;
+			}
+			cout << "Invalid selection: country does not have enough armies or not owned." << endl;
+		}
+
+		map->AttackCountry(currentPlayer, attackingCountry, defendingCountry);
 	}
 	void fortificationPhase(Player *currentPlayer)
 	{
-		std::cout << currentPlayer->Name << ", it's your fortification phase." << std::endl;
+		cout << currentPlayer->Name << ", it's your fortification phase." << std::endl;
 
-		while (true)
+		Country *fromCountry = selectCountry(currentPlayer, "Select country to fortify from: ");
+		if (fromCountry == nullptr)
 		{
-			Country *fromCountry = selectCountry(currentPlayer, "Select country to fortify from: ");
-			if (fromCountry == nullptr)
-			{
-				std::cout << "Fortification phase ended.\n";
-				break;
-			}
-
-			Country *toCountry = selectCountry(currentPlayer, "Select neighbor country to fortify: ", fromCountry);
-			if (toCountry == nullptr)
-				continue;
-
-			int armiesToMove = selectArmyCount(fromCountry);
-			if (armiesToMove == 0)
-				continue;
-
-			map->fortificationPhase(currentPlayer, fromCountry, toCountry, armiesToMove);
-
-			// Ask if the player wants to fortify again
-			std::cout << "Do you want to fortify again? (yes/no): ";
-			std::string choice;
-			std::cin >> choice;
-			if (choice != "yes")
-			{
-				break;
-			}
+			cout << "Fortification phase ended.\n";
+			return;
 		}
+
+		Country *toCountry = selectCountry(currentPlayer, "Select neighbor country to fortify: ", fromCountry);
+		if (toCountry == nullptr)
+		{
+			return;
+		}
+
+		int armiesToMove = selectArmyCount(fromCountry);
+		if (armiesToMove == 0)
+		{
+			return;
+		}
+
+		map->fortificationPhase(currentPlayer, fromCountry, toCountry, armiesToMove);
 	}
 
 	Country *selectCountry(Player *player, const std::string &prompt, Country *neighborOf = nullptr)
 	{
 		while (true)
 		{
-			std::cout << prompt;
-			std::string countryName;
-			std::getline(std::cin, countryName); // Get country name input
+			cout << prompt;
+			string countryName;
+			getline(cin, countryName); // Get country name input
 
 			Country *selectedCountry = map->findCountryByName(countryName);
-			if (selectedCountry != nullptr && selectedCountry->owner == player)
+			if (selectedCountry != nullptr && selectedCountry->Owner == player)
 			{
 				if (neighborOf == nullptr || selectedCountry->areNeighbours(neighborOf))
 				{
@@ -389,11 +463,19 @@ public:
 				else
 				{
 					std::cout << "Invalid selection: countries are not neighbors." << std::endl;
+					// print the neighbours of the selected country
+					std::cout << "Neighbours of " << selectedCountry->Name << " are: ";
+					for (auto neighbour : selectedCountry->Neighbours)
+					{
+						std::cout << neighbour->Name << ", ";
+					}
 				}
 			}
 			else
 			{
 				std::cout << "Invalid selection: country not found or not owned by you." << std::endl;
+				// print the countries owned by the player
+				printOwnedCountries(player);
 			}
 		}
 	}
@@ -709,7 +791,7 @@ public:
 		_westernAustralia->AddNeighbour(_indonesia);
 		_westernAustralia->AddNeighbour(_newGuinea);
 
-		//connections to other continents
+		// connections to other continents
 		_alaska->AddNeighbour(_kamchatka);
 		_kamchatka->AddNeighbour(_alaska);
 
@@ -735,22 +817,18 @@ public:
 			currentPlayerIndex = currentPlayerIndex % players.size();
 			Player *currentPlayer = players[currentPlayerIndex];
 
-			int reinforcements = map->reinforcementPhase(currentPlayer);
+			int reinforcements = map->GetReinforcementsAmount(currentPlayer);
 			std::cout << currentPlayer->Name << " receives " << reinforcements << " reinforcements." << std::endl;
 			deployReinforcements(currentPlayer, reinforcements);
 
 			attackPhase(currentPlayer);
-			std::cout << "Attack phase for " << currentPlayer->Name << std::endl;
 
-			// Fortification phase (placeholder, implement your logic)
 			fortificationPhase(currentPlayer);
-			std::cout << "Fortification phase for " << currentPlayer->Name << std::endl;
 
-			// await 1000ms
 			std::cout << "__________________________________________________" << std::endl;
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-			currentPlayerIndex++;
+			++currentPlayerIndex;
 		}
 
 		Player *winner = players[currentPlayerIndex]; // Last standing player wins
@@ -764,7 +842,7 @@ public:
 		{
 			if (player->OwnedCountries.size() > 0)
 			{
-				playersWithCountries++;
+				++playersWithCountries;
 			}
 		}
 		return playersWithCountries == 1; // True if only one player has territories
