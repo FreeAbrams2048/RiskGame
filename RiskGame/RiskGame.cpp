@@ -11,6 +11,7 @@ using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
+using std::to_string;
 
 // Forward declarations
 class Player;
@@ -424,7 +425,7 @@ public:
 	{
 		string input;
 		cout << currentPlayer->Name << ", it's your fortification phase, do you wish to fortify(yes/no)" << std::endl;
-		cin >> input;
+		getline(cin, input);
 		if (input != "yes")
 			return;
 
@@ -444,17 +445,43 @@ public:
 			return;
 		}
 
-		cout << fromCountry->Name << " Neighbours: ";
-		for (auto neighbour : fromCountry->Neighbours)
+		//get neighbours from the selected country that are owned by player
+		vector<Country *> _neighbourCountries;
+		cout << "Neighbours owned by you: ";
+		for(auto neighbour : fromCountry->Neighbours)
 		{
-			cout << neighbour->Name << " | ";
+			if(neighbour->Owner == currentPlayer)
+			{
+				_neighbourCountries.push_back(neighbour);
+				cout << neighbour->Name << " | ";
+			}
 		}
 		cout << endl;
-		Country *toCountry = selectCountry(currentPlayer, "Select neighbor country to fortify: ", fromCountry);
-
-		if (toCountry == nullptr)
+		if (_neighbourCountries.size() == 0)
 		{
+			cout << "No neighbours to fortify." << endl;
 			return;
+		}
+		// select a country to fortify
+		Country *toCountry;
+		cout << "Select a country to fortify: ";
+		while(true)
+		{			
+			string countryName;
+			getline(cin, countryName);
+			for(auto country : _neighbourCountries)
+			{
+				if(countryName == country->Name)
+				{
+					toCountry = country;
+					break;
+				}
+			}
+			if(toCountry != nullptr)
+			{
+				break;
+			}
+			cout << "Invalid selection: country does not have enough armies or not owned." << endl;
 		}
 
 		int armiesToMove = selectArmyCount(fromCountry);
@@ -484,18 +511,18 @@ public:
 				}
 				else
 				{
-					std::cout << "Invalid selection: countries are not neighbors." << std::endl;
+					cout << "Invalid selection: countries are not neighbors." << std::endl;
 					// print the neighbours of the selected country
-					std::cout << "Neighbours of " << selectedCountry->Name << " are: ";
+					cout << "Neighbours of " << selectedCountry->Name << " are: ";
 					for (auto neighbour : selectedCountry->Neighbours)
 					{
-						std::cout << neighbour->Name << ", ";
+						cout << neighbour->Name << ", ";
 					}
 				}
 			}
 			else
 			{
-				std::cout << "Invalid selection: country not found or not owned by you." << std::endl;
+				cout << "\nInvalid selection: country not found or not owned by you." << std::endl;
 				// print the countries owned by the player
 				printOwnedCountries(player);
 			}
@@ -532,18 +559,25 @@ public:
 		while (numArmies > 0)
 		{
 			cout << "How many armies to deploy: ";
-			cin >> amountDeployed;
+			string temp;
+			getline(cin, temp);
+			amountDeployed = stoi(temp);
 			while (amountDeployed > numArmies)
 			{
 				cout << "Number to deploy is greater then available armies" << endl;
 				cout << "How many armies to deploy: ";
-				cin >> amountDeployed;
+				getline(cin, temp);
+				temp = to_string(amountDeployed);
+				amountDeployed = stoi(temp);
 			}
 			while (amountDeployed <= 0)
 			{
 				cout << "Number to deploy must be greater than 0" << endl;
 				cout << "How many armies to deploy: ";
-				cin >> amountDeployed;
+				
+				getline(cin, temp);
+				temp = to_string(amountDeployed);
+				amountDeployed = stoi(temp);
 			}
 			Country *country = selectCountry(player, "Select the country you wish to deploy them to: ");
 			if (country == nullptr)
