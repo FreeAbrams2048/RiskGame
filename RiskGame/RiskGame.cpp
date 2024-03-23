@@ -10,8 +10,8 @@ using std::cin;
 using std::cout;
 using std::endl;
 using std::string;
-using std::vector;
 using std::to_string;
+using std::vector;
 
 // Forward declarations
 class Player;
@@ -445,12 +445,12 @@ public:
 			return;
 		}
 
-		//get neighbours from the selected country that are owned by player
+		// get neighbours from the selected country that are owned by player
 		vector<Country *> _neighbourCountries;
 		cout << "Neighbours owned by you: ";
-		for(auto neighbour : fromCountry->Neighbours)
+		for (auto neighbour : fromCountry->Neighbours)
 		{
-			if(neighbour->Owner == currentPlayer)
+			if (neighbour->Owner == currentPlayer)
 			{
 				_neighbourCountries.push_back(neighbour);
 				cout << neighbour->Name << " | ";
@@ -465,19 +465,19 @@ public:
 		// select a country to fortify
 		Country *toCountry;
 		cout << "Select a country to fortify: ";
-		while(true)
-		{			
+		while (true)
+		{
 			string countryName;
 			getline(cin, countryName);
-			for(auto country : _neighbourCountries)
+			for (auto country : _neighbourCountries)
 			{
-				if(countryName == country->Name)
+				if (countryName == country->Name)
 				{
 					toCountry = country;
 					break;
 				}
 			}
-			if(toCountry != nullptr)
+			if (toCountry != nullptr)
 			{
 				break;
 			}
@@ -555,6 +555,7 @@ public:
 	}
 	void deployReinforcements(Player *player, int numArmies)
 	{
+		bool invalid = false;
 		int amountDeployed = 0;
 		while (numArmies > 0)
 		{
@@ -562,22 +563,22 @@ public:
 			string temp;
 			getline(cin, temp);
 			amountDeployed = stoi(temp);
-			while (amountDeployed > numArmies)
+			if (amountDeployed > numArmies || amountDeployed <= 0)
 			{
-				cout << "Number to deploy is greater then available armies" << endl;
-				cout << "How many armies to deploy: ";
-				getline(cin, temp);
-				temp = to_string(amountDeployed);
-				amountDeployed = stoi(temp);
+				invalid = true;
 			}
-			while (amountDeployed <= 0)
+
+			while (invalid)
 			{
-				cout << "Number to deploy must be greater than 0" << endl;
-				cout << "How many armies to deploy: ";
-				
+				cout << "Invalid Entry" << endl;
+				cout << "How many armies to deploy: " << endl;
+
 				getline(cin, temp);
-				temp = to_string(amountDeployed);
 				amountDeployed = stoi(temp);
+				if (amountDeployed <= numArmies && amountDeployed > 0)
+				{
+					invalid = false;
+				}
 			}
 			Country *country = selectCountry(player, "Select the country you wish to deploy them to: ");
 			if (country == nullptr)
